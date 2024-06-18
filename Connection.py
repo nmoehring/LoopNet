@@ -3,21 +3,27 @@ from Stream import LoopStream
 
 
 class LoopConnection:
-    def __init__(self, client_id, ip, port):
-        self.clientId = client_id
+    def __init__(self, node_id, ip, port, waiting=False):
+        self.node_id = node_id
         self.ip = ip
         self.port = port
         self.stream = None
+        self.waiting = waiting
 
     @classmethod
-    def as_loopback(cls, client_id):
-        return cls(client_id, "127.0.0.1", 80)
+    def as_loopback(cls):
+        return cls(0, "127.0.0.1", 8888)
 
-    def update(self, client_id=None, ip=None, port=None):
+    @classmethod
+    def as_net_connection(cls):
+        return cls(1, '127.0.0.1', 8888, True)
+
+    def update(self, client_id=None, ip=None, port=None, waiting=None):
         # None argument means no change to that attribute
-        self.clientId = client_id if client_id else self.clientId
+        self.node_id = client_id if client_id else self.node_id
         self.ip = ip if ip else self.ip
         self.port = port if port else self.port
+        self.waiting = waiting if waiting else self.waiting
         return self
 
     async def open(self):
@@ -30,8 +36,3 @@ class LoopConnection:
 
     async def send(self, message):
         await self.stream.send(message)
-
-#
-#   async def receive(self, data):
-#       data = await self.reader.read(100)
-#       print(f'Received: {data.decode()!r}')

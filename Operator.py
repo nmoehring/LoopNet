@@ -1,23 +1,16 @@
 import asyncio
-from Node import LoopNode
+from Node import Node
 from Switchboard import Switchboard
 
 
 class Operator:
-    def __init__(self, client_id):
-        self.id = client_id
-        self.nodes = [LoopNode.as_loopback(client_id)]
+    def __init__(self):
+        self.callsign = None
         self.switchboard = Switchboard()
-        self.newInboundConnections = asyncio.Queue()
-        self.expectedInboundConnections = asyncio.Queue()
 
-    def connect_to_loop(self, client_id, ip, port, category):
-        #if newConnection.inputNode = loopNode #later, to prevent a single node from creating it's own hidden loop
-        if len(self.nodes) == 1:
-            self.nodes.append(client.connectNewClient(LoopNode(self.id)))
-
-    async def start_switchboard(self):
-        await self.switchboard.start()
+    async def start_all_systems(self, taskgroup):
+        taskgroup.create_task(self.switchboard.start())
+        #taskgroup.create_task(self.switchboard.init_loopback())
 
     async def run_nodes(self, taskGroup):
         pass
@@ -32,7 +25,6 @@ class Operator:
             self.nodes.append(Node(self.id))
         return self.nodes[1]
 
-    ####Broadcast functions
     def encryptMsg(self, message):
         pass
 
@@ -41,4 +33,3 @@ class Operator:
 
     def sendDbgMsg(self, message):
         pass
-    ####AsyncIO command center

@@ -22,26 +22,33 @@ class Category(Enum):  #256 categories. Uses repetition error-correcting code, 8
     AsLongAsItTakesNet = to_code(5)
 
 
-class LoopNode:
-    def __init__(self, client_id, connection, category=Category.MainNet):
-        self.clientId = client_id
+class Node:
+    def __init__(self, node_id, connection, category):
+        self.id = node_id
         self.category = category
-        self.outConnection = connection
-        self.inQ = asyncio.Queue()
+        self.outConnections = [connection] #outConnections[0] is primary
+        self.inConnections = [connection.update(waiting=True)]
+        self.inQ = asyncio.Queue() #figure out how to block data in one direction on a socket
         self.outQ = asyncio.Queue()
 
     @classmethod
-    def as_loopback(cls, client_id):
-        return cls(client_id, LoopConnection.as_loopback(client_id), category=Category.Loopback)
+    def as_loopback(cls):
+        new_node = cls(0, LoopConnection.as_loopback(), category=Category.Loopback)
+        new_node.loopback_id = -1
+        return new_node
+
+    @classmethod
+    def as_net_node(cls):
+        return cls(1, LoopConnection.as_net_connection(), category=Category.MainNet)
 
     def is_loopback(self):
         return self.category is Category.Loopback
 
     def is_alone(self):
-        return self.outConnection.clientId == self.clientId
+        return self.outConnection.routingId == self.routingId
 
     async def connect(self):
-        await self.outConnection.accept_connection()
+        await self.outConnections[0].open()
 
     def update_connections(self, outbound_client_id=None, outbound_ip=None, outbound_port=None, category=None):
         self.outConnection.update(outbound_client_id, outbound_ip, outbound_port)
@@ -62,4 +69,4 @@ class LoopNode:
                                 outbound_port=new_port)
 
     async def send_msg(self, message):
-        await self.outConnection.send(message)
+        await self.outConnections[0].send(message)

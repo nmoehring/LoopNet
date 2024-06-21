@@ -5,9 +5,9 @@ TESTING = False
 
 
 async def main():
-    op = Operator(1)
     async with asyncio.TaskGroup() as tg:
-        tg.create_task(op.start_all_systems(tg))
+        op = Operator(tg)
+        tg.create_task(op.start_all_systems())
 
 
 if __name__ == '__main__':

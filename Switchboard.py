@@ -1,9 +1,9 @@
 import asyncio
 
-from Node import Node
+from Node import Node, Category
 
-from Connection import LoopConnection
-from Stream import LoopStream
+from NodeLink import NodeLink
+from LinkStream import LinkStream
 
 
 # Loops are connected nodes, nodes send data one way (need to figure out how to prevent
@@ -36,12 +36,14 @@ from Stream import LoopStream
 # Message travels around to
 
 class Switchboard:
-    def __init__(self):
+    def __init__(self, taskgroup):
         self.server = None
         self.inboundStreams = []
         self.data = asyncio.Queue()
-        self.nodes = [Node.as_loopback(0), Node.as_net_node()]
-        self.connections = []
+        self.nodes = [Node.as_loopback(taskgroup), Node(taskgroup)]
+        self.initNode = Node(taskgroup, -1, category=Category.InitLink)
+        self.nodeBuffer = []
+        self.taskgroup = taskgroup
 
     async def start(self):
         print("Starting server...")
@@ -53,13 +55,22 @@ class Switchboard:
     def accept_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         sock = writer.get_extra_info('socket')
         #Need to know what node to connect to
+        #connect() just suppposed to advertise intent to connect
+        #a new node is inserted when the loop node connects to the server of the new node,
+        # then the oNode assignment for the new node and the iNode assignment for the next
+        # node in the loop are directed by the insertion node
         if sock:
             sock_info = sock.getpeername()
-            self.connections.append(LoopConnection(0, sock_info[0], sock_info[1]))
-            self.connections[-1]
+            self.add_buffer_node(sock_info[0], sock_info[1], reader, writer)
+            print(sock_info[0], ":", sock_info[1], "connected!")
             #print(sock.getsockopt('peername'))
-        #self.connections.append(LoopConnection())
+        #self.connections.append(NodeLink())
+
+    def add_buffer_node(self, ip, port, reader, writer):
+        self.nodeBuffer.append(Node(self.taskgroup, category=Category.InitLink)
+                               .update_links_init(ip, port)
+                               .links[0][0].stream.open(reader, writer))
 
     async def init_loopback(self):
         print("Initializing loopback node...")
-        await self.nodes[0].connect()
+        await self.nodes[0].init_connect()

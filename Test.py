@@ -1,7 +1,7 @@
 import unittest
 
 from Operator import Operator
-from Connection import LoopConnection
+from NodeLink import NodeLink
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):
@@ -10,7 +10,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def testConnection(self):
         await self.client.start_server()
-        await self.client.nodes[0].connect()
+        await self.client.nodes[0].init_connect()
         await self.client.nodes[0].send("TEST123")
 
 

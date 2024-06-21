@@ -4,15 +4,16 @@ from Switchboard import Switchboard
 
 
 class Operator:
-    def __init__(self):
+    def __init__(self, taskgroup):
+        self.taskgroup = taskgroup
         self.callsign = None
-        self.switchboard = Switchboard()
+        self.switchboard = Switchboard(taskgroup)
 
-    async def start_all_systems(self, taskgroup):
-        taskgroup.create_task(self.switchboard.start())
-        #taskgroup.create_task(self.switchboard.init_loopback())
+    async def start_all_systems(self):
+        self.taskgroup.create_task(self.switchboard.start())
+        self.taskgroup.create_task(self.switchboard.init_loopback())
 
-    async def run_nodes(self, taskGroup):
+    async def run_nodes(self):
         pass
 
     def insertNewClient(self, connectingNode):

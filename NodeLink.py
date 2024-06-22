@@ -40,6 +40,12 @@ class NodeLink:
         self.port = port if port else self.port
         return self
 
+    def reset(self):
+        self.ip = '127.0.0.1'
+        self.port = 8888
+        self.otherNodeId = 1
+        self.stream.reset()
+
     async def open(self):
         reader, writer = await asyncio.open_connection(
             self.ip, self.port)

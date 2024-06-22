@@ -1,5 +1,7 @@
 import asyncio
 
+from Message import Message
+
 
 class LinkStream:
     def __init__(self, parent_link, reader=None, writer=None, is_inbound=True):
@@ -9,6 +11,13 @@ class LinkStream:
         self.isInbound = is_inbound
         self.buffer = asyncio.Queue()
         self.active = False
+
+    async def reset(self):
+        await self.close()
+        self.reader = None
+        self.writer = None
+        while not self.buffer.empty():
+            await self.buffer.get()
 
     async def close(self):
         self.writer.close()

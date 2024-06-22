@@ -4,11 +4,15 @@ class Message:
         self.stream = stream
         self.link = stream.parentLink
         self.node = self.link.parentNode
+
+        self.data = data
         self.delimiter = ":"
         if type(data) is list:
-            self.msg = self.delimiter.join(data)
+            self.msg = (self.delimiter.join(
+                    [(str(item) if type(item) is not str else item) for item in data]))
         elif type(data) is str:
             self.msg = data.decode()
+            self.data = self.msg.split(self.delimiter)
         else:
             raise TypeError("Message initializer received unsupported data type.")
 
@@ -20,4 +24,5 @@ class Message:
         await self.node.inbox.put(self)
 
     async def send(self):
-        await self.stream.writer.write(self.msg.encode())
+        self.stream.writer.write(self.msg.encode())
+        await self.stream.writer.drain()

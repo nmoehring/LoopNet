@@ -6,7 +6,7 @@ from enum import Enum
 
 
 def to_code(num, num_bits=8, int_size=256):
-    #Original number, number of bits for original encoding, evenly divided across 64 bits
+    # Original number, number of bits for original encoding, evenly divided across 64 bits
     num_shifts = int(int_size / num_bits)
     new_num = int(num)
     for shift in range(num_shifts):
@@ -15,10 +15,10 @@ def to_code(num, num_bits=8, int_size=256):
     return new_num
 
 
-class Category(Enum):  #256 categories. Uses repetition error-correcting code, 8 repetitions across 64 bits
+class Category(Enum):  # 256 categories. Uses repetition error-correcting code, 8 repetitions across 64 bits
     Loopback = 0
     MainNet = to_code(1)
-    LAN = to_code(2)  #these 4 are more about speed than distance, but I like the names
+    LAN = to_code(2)  # these 4 are more about speed than distance, but I like the names
     WAN = to_code(3)
     VWAN = to_code(4)
     AsLongAsItTakesNet = to_code(5)
@@ -39,7 +39,7 @@ class Node:
             self.links.append(NodeLink.as_netlink_pair(self, 0))
         self.tempLinks = []
         self.taskgroup.create_task(self.run_mail_service())
-        self.inQ = asyncio.Queue()  #figure out how to block data in one direction on a socket
+        self.inQ = asyncio.Queue()  # figure out how to block data in one direction on a socket
         self.outQ = asyncio.Queue()
 
     @classmethod
@@ -56,11 +56,13 @@ class Node:
         return self.links[0][0].node_id == self.node_id
 
 #   #######Connection methods###############
-    async def init_connect(self, ip, port):  #Connect to signal intent to be inserted in a net loop
-        self.links[0][1].update(ip, port)
-        self.initMode = True
-        await self.links[0][1].open()
-        await self.send_msg(f"NEWCONNECT")
+    async def init_connect(self, ip, port):  # Connect to signal intent to be inserted in a net loop
+        if self.category == Category.InitLink:
+            self.links[0][1].update(ip, port)
+            await self.links[0][1].open()
+            await self.send_msg(["NEW_CONNECT", self.node_id], 0)
+        else:
+            raise TypeError("init_connect() only meant to be called from InitLink nodes.")
 
 #   # As node of a loop, connect to new node (connected with init_connect()) to insert them
     async def insert_connect(self, ip, port, node_id):
@@ -76,7 +78,7 @@ class Node:
 
     def update_links(self, outbound_client_id=None, outbound_ip=None, outbound_port=None, category=None):
         self.links[0][1].update(outbound_client_id, outbound_ip, outbound_port)
-        if category: does this do anything
+        if category:
             self.category = category
         return self
 
@@ -96,8 +98,8 @@ class Node:
     def handle_msg(self, msg):
         data = msg.something()
         match data[0]:
-            case 'NEWCONNECT':
-                self.insert_connect(data[1], data[2], data[3])
+            case 'NEW_CONNECT':
+                self.insert_connect(data[1])
 
     async def insert_node(self, new_client_id, new_ip, new_port):
         # Message outbound node that they will get a new connection for their inbound
@@ -118,9 +120,8 @@ class Node:
         print("MSG:", await self.links[0][0].stream.buffer.get)
 
     async def destroy(self):
-        for link in self.inLinks:
-            await link.close()
-        for link in self.outLinks:
-            await link.close()
+        for link_pair in self.links:
+            await link_pair[0].close()
+            await link_pair[1].close()
         for link in self.tempLinks:
             await link.close()

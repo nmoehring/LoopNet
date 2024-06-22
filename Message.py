@@ -13,8 +13,8 @@ class Message:
             raise TypeError("Message initializer received unsupported data type.")
 
     @classmethod
-    def from_node(cls, msg, node, link_idx, outbound=True):
-        return cls(msg, node.links[link_idx][1 if outbound else 0].stream)
+    def from_node(cls, data, node, link_idx, outbound=True):
+        return cls(data, node.links[link_idx][1 if outbound else 0].stream)
 
     async def deliver(self):
         await self.node.inbox.put(self)

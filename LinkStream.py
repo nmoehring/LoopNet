@@ -1,17 +1,6 @@
 import asyncio
 
 
-class Message:
-    def __init__(self, msg, stream):
-        self.msg = msg
-        self.stream = stream
-        self.link = stream.parentLink
-        self.node = self.link.parentNode
-
-    async def deliver(self):
-        await self.node.inbox.put(self)
-
-
 class LinkStream:
     def __init__(self, parent_link, reader=None, writer=None, is_inbound=True):
         self.parentLink = parent_link

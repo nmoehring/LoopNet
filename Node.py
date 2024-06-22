@@ -2,70 +2,59 @@ import asyncio
 
 from Message import Message
 from NodeLink import NodeLink
-from vocab import Category, LinkLevel
+from vocab import NodeType, LinkType, LinkDir, LT, LD
 
 
 class Node:
-    def __init__(self, taskgroup, node_id=1, category=Category.MainNet):
+    def __init__(self, taskgroup, node_id=1, node_type=NodeType.NET):
         self.taskgroup = taskgroup
-        self.node_id = node_id
-        self.category = category
+        self.nodeId = node_id
+        self.nodeType = node_type
         self.links = []
-        for level in range(4):
-            if category is Category.MainNet:
-                self.links.append(NodeLink.as_netlink_pair(self, level))
+        for type_idx in range(len(LinkType)):
+            self.links.append(NodeLink.as_pair(self, type_idx))
         self.inbox = asyncio.Queue()
         self.outbox = asyncio.Queue()
-        if category == Category.Loopback:
-            self.links.append(NodeLink.as_netlink_pair(self, 0))
-        else:
-            self.links.append(NodeLink.as_netlink_pair(self, 0))
-        self.tempLinks = []
         self.taskgroup.create_task(self.run_mail_service())
-        self.inQ = asyncio.Queue()  # figure out how to block data in one direction on a socket
-        self.outQ = asyncio.Queue()
 
     @classmethod
     def as_loopback(cls, taskgroup):
-        new_node = cls(taskgroup, 0, category=Category.Loopback)
-        new_node.loopback_id = -1
+        new_node = cls(taskgroup, 0, node_type=NodeType.LOOPBACK)
         return new_node
 
     #   #######Node Type Checks#########
     def is_loopback(self):
-        return self.category is Category.Loopback
+        return self.nodeType is NodeType.LOOPBACK
 
     def is_alone(self):
-        return self.links[0][0].node_id == self.node_id
+        return self.links[LT.LOCAL][LD.IN].nodeId == self.nodeId
 
     #   #######Connection methods###############
     async def init_connect(self, ip, port):  # Connect to signal intent to be inserted in a net loop
-        if self.category == Category.InitLink:
-            self.links[0][1].update(ip, port)
-            await self.links[0][1].open()
-            await self.send_msg(["NEW_CONNECT", self.node_id], 0)
+        if self.nodeType == NodeType.INIT:
+            self.links[LT.TEMP][LD.OUT].update(ip, port)
+            await self.links[LT.TEMP][LD.OUT].open()
+            await self.send_msg(["NEW_CONNECT", self.nodeId], 0)
         else:
-            raise TypeError("init_connect() only meant to be called from InitLink nodes.")
+            raise TypeError("init_connect() only meant to be called from INIT nodes.")
 
     #   # As node of a loop, connect to new node (connected with init_connect()) to insert them
     async def insert_connect(self, ip, port, node_id):
-        pass
+        self.update_link(ip, port, node_id, LT.TEMP, LD.OUT)
+        await self.links[LT.TEMP][LD.OUT].open()
 
     #   ########Internal Link Manipulation##############
     def update_links_init(self, ip, port):
-        if self.category == Category.InitLink:
-            self.links[0][0].update(ip, port)
+        if self.nodeType == NodeType.INIT:
+            self.links[LT.TEMP][LD.IN].update(ip, port)
             return self
         else:
-            raise AttributeError("This function to be used in InitLink nodes.")
+            raise AttributeError("This function to be used in INIT nodes.")
 
-    def update_links(self, outbound_client_id=None, outbound_ip=None, outbound_port=None, category=None):
-        self.links[0][1].update(outbound_client_id, outbound_ip, outbound_port)
-        if category:
-            self.category = category
-        return self
+    def update_link(self, ip, port, node_id, link_type, link_dir):
+        self.links[link_type][link_dir].update(ip, port, node_id)
 
-    #   #########MESSAGING###########
+    # ########MESSAGING########### #
     async def check_mail(self):
         while True:
             self.handle_msg(await self.inbox.get())
@@ -84,15 +73,16 @@ class Node:
             case 'NEW_CONNECT':
                 self.insert_connect(data[1])
 
-    async def insert_node(self, new_node_id, new_ip, new_port):
+    async def insert_node(self, node_id, ip, port):
         temp = 0
         if not self.is_alone():
-            self.tempLinks.append(NodeLink(self, new_ip, new_port, 0, 1, new_node_id, False))
-            await self.tempLinks[0].open()
-            await self.send_msg(["INSERT_NODE", new_node_id, new_ip, new_port], 0)
+            await self.insert_connect(node_id, ip, port)  # Connect to new node
+            insert_msg = ["INSERT_NODE", node_id, ip, port]
+            await self.send_msg(insert_msg, LT.LOCAL)  # Send alert to current OUT
             # Receive INSERT_NODE message after complete loop, confirming good connection
-            await self.send_msg(["NEW_OUTPUT", ])
-            # Message new node with their new inbound (self) and their new outbound
+            out_msg = ["NEW_OUTBOUND"] + self.links[LT.LOCAL][LD.OUT].get_info()
+            await self.send_msg(out_msg, LT.TEMP)  # Msg new node with their new outbound
+            # Message new node with their new outbound
             # (self if self was alone, else self's outbound)
         self.update_links(outbound_client_id=new_client_id,
                           outbound_ip=new_ip,

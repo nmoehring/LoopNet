@@ -1,50 +1,42 @@
 import asyncio
 from LinkStream import LinkStream
+from vocab import LD
 
 
 class NodeLink:
-    def __init__(self, parent_node, ip, port, idx1, idx2,
-                 other_node_id=1, is_inbound=True):
+    def __init__(self, parent_node, link_type, link_dir):
         self.parentNode = parent_node
-        self.otherNodeId = other_node_id
-        self.idx = (idx1, idx2)
-        self.ip = ip
-        self.port = port
+        self.otherNodeId = 1
+        self.linkType = link_type
+        self.linkDir = link_dir
+        self.ip = '127.0.0.1'
+        self.port = 8888
         self.stream = LinkStream(self)
-        self.waiting = True if is_inbound else False
+        self.waiting = True if self.linkDir == LD.IN else False
 
     @classmethod
-    def as_loopback(cls, parent_node, idx1, idx2, is_inbound=True):
-        return cls(parent_node, "127.0.0.1", 8888, idx1, idx2, is_inbound)
-
-    @classmethod
-    def as_netlink(cls, parent_node, idx1, idx2, is_inbound=True):
-        return cls(parent_node, '127.0.0.1', 8888, idx1, idx2, is_inbound)
-
-    @classmethod
-    def as_loopback_pair(cls, parent_node, idx):
-        return (cls.as_loopback(parent_node, idx, 0, True),
-                cls.as_loopback(parent_node, idx, 1, False))
-
-    @classmethod
-    def as_netlink_pair(cls, parent_node, idx):
-        return (cls.as_netlink(parent_node, idx, 0, True),
-                cls.as_netlink(parent_node, idx, 1, False))
+    def as_pair(cls, parent_node, link_type):
+        return (cls(parent_node, link_type, LD.IN),
+                cls(parent_node, link_type, LD.OUT))
 
     def is_loopback(self):
-        return self.parentNode.node_id == 0
+        return self.parentNode.nodeId == 0
 
-    def update(self, ip=None, port=None):
+    def get_info(self):
+        return [self.ip, self.port, self.otherNodeId]
+
+    def update(self, node_id, ip=None, port=None):
         # None argument means no change to that attribute
         self.ip = ip if ip else self.ip
         self.port = port if port else self.port
+        self.otherNodeId = node_id
         return self
 
-    def reset(self):
+    async def reset(self):
         self.ip = '127.0.0.1'
         self.port = 8888
         self.otherNodeId = 1
-        self.stream.reset()
+        await self.stream.reset()
 
     async def open(self):
         reader, writer = await asyncio.open_connection(

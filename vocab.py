@@ -1,4 +1,4 @@
-from enum import IntEnum
+import enum
 
 
 def to_code(num, num_bits=8, int_size=256):
@@ -11,18 +11,24 @@ def to_code(num, num_bits=8, int_size=256):
     return new_num
 
 
-class LinkLevel(IntEnum):
-    TempLinks = 0  # It's permanent, but used for new connections
-    LocalLoop = 1  # The loop you are active on the most, your neighbors are here!
-    KnotLoop1 = 2  # Refers to adjacent loop, but also the knot is 2x larger than local
-    KnotLoop2 = 3
+class NodeType(enum.IntEnum):  # 256 categories. Uses repetition error-correcting code, 8 repetitions across 64 bits
+    LOOPBACK = 0
+    NET = 1
+    INIT = to_code(2)
 
 
-class Category(IntEnum):  # 256 categories. Uses repetition error-correcting code, 8 repetitions across 64 bits
-    Loopback = 0
-    MainNet = to_code(1)
-    LAN = to_code(2)  # these 4 are more about speed than distance, but I like the names
-    WAN = to_code(3)
-    VWAN = to_code(4)
-    AsLongAsItTakesNet = to_code(5)
-    InitLink = to_code(6)
+class LinkType(enum.IntEnum):
+    TEMP = 0  # It's permanent, but used for new connections
+    LOCAL = 1  # The loop you are active on the most, your neighbors are here!
+    KNOT1 = 2  # Refers to adjacent loop, but also the knot is 2x larger than local
+    KNOT2 = 3
+
+
+class LinkDir(enum.IntEnum):
+    IN = 0
+    OUT = 1
+
+
+LD = LinkDir
+LT = LinkType
+NT = NodeType

@@ -1,9 +1,7 @@
 import asyncio
 
-from Node import Node, Category
-
-from NodeLink import NodeLink
-from LinkStream import LinkStream
+from Node import Node, NodeType
+from vocab import NT
 
 
 # Loops are connected nodes, nodes send data one way (need to figure out how to prevent
@@ -22,7 +20,7 @@ from LinkStream import LinkStream
 # Stack-stacks form, with different node columns representing at different layers
 #
 
-# 0 - Loopback
+# 0 - LOOPBACK
 # 1 - Connection Loop And Stack - Connect to everything everywhere as good as possible
 #                               - Higher
 
@@ -41,8 +39,8 @@ class Switchboard:
         self.inboundStreams = []
         self.data = asyncio.Queue()
         self.nodes = [Node.as_loopback(taskgroup), Node(taskgroup)]
-        self.initNode = Node(taskgroup, -1, category=Category.InitLink)
-        self.nodeBuffer = []
+        self.initNode = Node(taskgroup, -1, node_type=NT.INIT)
+        self.connectBuffer = []
         self.taskgroup = taskgroup
 
     async def start(self):
@@ -67,9 +65,9 @@ class Switchboard:
         #self.connections.append(NodeLink())
 
     def add_buffer_node(self, ip, port, reader, writer):
-        self.nodeBuffer.append(Node(self.taskgroup, category=Category.InitLink)
-                               .update_links_init(ip, port)
-                               .links[0][0].stream.open(reader, writer))
+        self.connectBuffer.append(Node(self.taskgroup, node_type=NT.INIT)
+                                  .update_links_init(ip, port)
+                                  .links[0][0].stream.open(reader, writer))
 
     async def init_loopback(self):
         print("Initializing loopback node...")

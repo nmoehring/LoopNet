@@ -26,6 +26,6 @@ if __name__ == '__main__':
 
         for client in testClients:
             print("Client:", client.id, "In:", client.nodes[1].connection.inboundNode.routingId, "Out:",
-                  client.nodes[1].connection.outboundNode.routingId, "Cat:", client.nodes[1].connection.category)
+                  client.nodes[1].connection.outboundNode.routingId, "Cat:", client.nodes[1].connection.nodeType)
 
 #------------Testing-----------------------

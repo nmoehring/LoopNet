@@ -91,12 +91,7 @@ class Node:
     async def send_msg(self, message, link_idx):
         await self.outbox.put(Message.from_node(message, self, link_idx))
 
-    async def print_msgs(self):
-        print("MSG:", await self.links[0][0].stream.buffer.get)
-
     async def destroy(self):
         for link_pair in self.links:
-            await link_pair[0].close()
-            await link_pair[1].close()
-        for link in self.tempLinks:
-            await link.close()
+            await link_pair[LD.IN].close()
+            await link_pair[LD.OUT].close()

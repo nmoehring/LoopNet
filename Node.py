@@ -2,11 +2,11 @@ import asyncio
 
 from Message import Message
 from NodeLink import NodeLink
-from vocab import NodeType, LinkType, LinkDir, LT, LD
+from lingo import NodeType, LinkType, LinkDir, LT, LD, NS, NodeState, LM
 
 
 class Node:
-    def __init__(self, taskgroup, node_id=1, node_type=NodeType.NET):
+    def __init__(self, taskgroup, invites, node_id=1, node_type=NodeType.NET):
         self.taskgroup = taskgroup
         self.nodeId = node_id
         self.nodeType = node_type
@@ -16,10 +16,12 @@ class Node:
         self.inbox = asyncio.Queue()
         self.outbox = asyncio.Queue()
         self.taskgroup.create_task(self.run_mail_service())
+        self.status = NodeState.IDLE
+        self.invites = invites
 
     @classmethod
-    def as_loopback(cls, taskgroup):
-        new_node = cls(taskgroup, 0, node_type=NodeType.LOOPBACK)
+    def as_loopback(cls, taskgroup, invites):
+        new_node = cls(taskgroup, invites, 0, node_type=NodeType.LOOPBACK)
         return new_node
 
     #   #######Node Type Checks#########
@@ -35,6 +37,7 @@ class Node:
             self.links[LT.TEMP][LD.OUT].update(ip, port)
             await self.links[LT.TEMP][LD.OUT].open()
             await self.send_msg(["NEW_CONNECT", self.nodeId], 0)
+            self.status = NodeState.NEW_CONNECT
         else:
             raise TypeError("init_connect() only meant to be called from INIT nodes.")
 
@@ -57,7 +60,7 @@ class Node:
     # ########MESSAGING########### #
     async def check_mail(self):
         while True:
-            self.handle_msg(await self.inbox.get())
+            await self.handle_msg(await self.inbox.get())
 
     async def send_mail(self):
         while True:
@@ -67,26 +70,40 @@ class Node:
         self.taskgroup.create_task(self.check_mail())
         self.taskgroup.create_task(self.send_mail())
 
-    def handle_msg(self, msg):
+    async def handle_msg(self, msg):
         data = msg.something()
         match data[0]:
-            case 'NEW_CONNECT':
-                self.insert_connect(data[1])
+            case LM.NEW_CONNECT:
+                await self.begin_insert(data[1], data[2], data[3])
+            case LM.INSERT_EXPECT:
+                await self.invites.put(data[1:])
+                self.status = NS.WAIT_NEW_IB
+            case LM.INSERT_CONNECT_OB:
+                pass
+            case LM.LOOP_CLOSED:
+                if self.status in (NodeState.WAIT_INSERTION, NodeState.WAIT_2LOOP):
+                    await self.finish_insert()
 
-    async def insert_node(self, node_id, ip, port):
-        temp = 0
+    async def begin_insert(self, node_id, ip, port):
         if not self.is_alone():
             await self.insert_connect(node_id, ip, port)  # Connect to new node
-            insert_msg = ["INSERT_NODE", node_id, ip, port]
+            insert_msg = [LM.INSERT_EXPECT, node_id, ip, port]
             await self.send_msg(insert_msg, LT.LOCAL)  # Send alert to current OUT
             # Receive INSERT_NODE message after complete loop, confirming good connection
-            out_msg = ["NEW_OUTBOUND"] + self.links[LT.LOCAL][LD.OUT].get_info()
+            out_msg = [LM.INSERT_CONNECT_OB] + self.links[LT.LOCAL][LD.OUT].get_info()
             await self.send_msg(out_msg, LT.TEMP)  # Msg new node with their new outbound
-            # Message new node with their new outbound
-            # (self if self was alone, else self's outbound)
-        self.update_links(outbound_client_id=new_client_id,
-                          outbound_ip=new_ip,
-                          outbound_port=new_port)
+            self.status = NodeState.WAIT_INSERTION
+        else:
+            out_msg = [LM.INSERT_CONNECT_OB] + self.links[LT.LOCAL][LD.OUT].get_info()
+            await self.send_msg(out_msg, LT.TEMP)
+            self.status = NodeState.WAIT_2LOOP
+
+
+    async def finish_insert(self):
+        if self.status == NodeState.WAIT_INSERTION:
+            pass
+        elif self.status == NodeState.WAIT_2LOOP:
+            pass
 
     async def send_msg(self, message, link_idx):
         await self.outbox.put(Message.from_node(message, self, link_idx))

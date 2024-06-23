@@ -1,7 +1,8 @@
 import asyncio
 
+from MetaLink import MetaLink
 from Node import Node, NodeType
-from vocab import NT
+from lingo import NT
 
 
 # Loops are connected nodes, nodes send data one way (need to figure out how to prevent
@@ -38,7 +39,9 @@ class Switchboard:
         self.server = None
         self.inboundStreams = []
         self.data = asyncio.Queue()
-        self.nodes = [Node.as_loopback(taskgroup), Node(taskgroup)]
+        self.invites = asyncio.Queue()
+        self.expectedConnects = []
+        self.nodes = [Node.as_loopback(taskgroup, self.invites), Node(taskgroup, self.invites)]
         self.initNode = Node(taskgroup, -1, node_type=NT.INIT)
         self.connectBuffer = []
         self.taskgroup = taskgroup
@@ -50,24 +53,38 @@ class Switchboard:
         async with self.server:
             await self.server.serve_forever()
 
+    async def process_queues(self):
+        self.taskgroup.create_task(self.get_invites())
+
+    async def get_invites(self):
+        while True:
+            self.expectedConnects.append(await self.invites.get())
+
     def accept_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        sock = writer.get_extra_info('socket')
+        info = MetaLink.from_streams(reader, writer)
         #Need to know what node to connect to
         #connect() just suppposed to advertise intent to connect
         #a new node is inserted when the loop node connects to the server of the new node,
         # then the oNode assignment for the new node and the iNode assignment for the next
         # node in the loop are directed by the insertion node
-        if sock:
-            sock_info = sock.getpeername()
-            self.add_buffer_node(sock_info[0], sock_info[1], reader, writer)
-            print(sock_info[0], ":", sock_info[1], "connected!")
+        self.connectBuffer.append(info)
+        print(info.addr, ":", info.port, "connected.")
             #print(sock.getsockopt('peername'))
         #self.connections.append(NodeLink())
 
-    def add_buffer_node(self, ip, port, reader, writer):
-        self.connectBuffer.append(Node(self.taskgroup, node_type=NT.INIT)
-                                  .update_links_init(ip, port)
-                                  .links[0][0].stream.open(reader, writer))
+    def fill_invites(self):
+        filled = []
+        for idx1 in range(len(self.expectedConnects)):
+            for idx2 in range(len(self.connectBuffer)):
+                if self.expectedConnects[idx1] == self.connectBuffer[idx2]:
+                    filled.append((idx1, idx2))
+        for idx in filled:
+            self.expectedConnects[idx[0]].updateNode(self.connectBuffer[idx[1]])
+        done_expected = sorted([f[0] for f in filled], reverse=True)
+        done_connected = sorted([f[1] for f in filled], reverse=True)
+        for idx in range(len(filled)):
+            del self.expectedConnects[done_expected[idx]]
+            del self.connectBuffer[done_expected[idx]]
 
     async def init_loopback(self):
         print("Initializing loopback node...")

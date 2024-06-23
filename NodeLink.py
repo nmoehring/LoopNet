@@ -1,6 +1,7 @@
 import asyncio
 from LinkStream import LinkStream
-from vocab import LD
+from MetaLink import MetaLink
+from lingo import LD
 
 
 class NodeLink:
@@ -23,7 +24,7 @@ class NodeLink:
         return self.parentNode.nodeId == 0
 
     def get_info(self):
-        return [self.ip, self.port, self.otherNodeId]
+        return MetaLink(self.otherNodeId, self.ip, self.port)
 
     def update(self, node_id, ip=None, port=None):
         # None argument means no change to that attribute

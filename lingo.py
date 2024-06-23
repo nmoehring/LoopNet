@@ -29,6 +29,26 @@ class LinkDir(enum.IntEnum):
     OUT = 1
 
 
+class NodeState(enum.IntEnum):
+    STEADY = 0
+    NEW_CONNECT = 1
+    WAIT_INSERTION = 2
+    WAIT_INSERTED = 3
+    WAIT_NEW_NODE_CONNECT = 4
+    WAIT_NEW_NODE_ID = 5
+    WAIT_NEW_IB = 6
+    WAIT_2LOOP = 7
+
+
+class LoopMsg(enum.IntEnum):
+    NEW_CONNECT = 0
+    INSERT_EXPECT = 1
+    INSERT_CONNECT_OB = 2
+    LOOP_CLOSED = 3
+
+
 LD = LinkDir
 LT = LinkType
 NT = NodeType
+NS = NodeState
+LM = LoopMsg

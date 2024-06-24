@@ -11,10 +11,10 @@ class Node:
         self.nodeId = node_id
         self.nodeType = node_type
         self.links = []
-        for type_idx in range(len(LinkType)):
-            self.links.append(NodeLink.as_pair(self, type_idx))
         self.inbox = asyncio.Queue()
         self.outbox = asyncio.Queue()
+        for type_idx in range(len(LinkType)):
+            self.links.append(NodeLink.as_pair(self, type_idx))
         self.taskgroup.create_task(self.run_mail_service())
         self.status = NodeState.IDLE
         self.invites = invites
@@ -98,12 +98,14 @@ class Node:
             await self.send_msg(out_msg, LT.TEMP)
             self.status = NodeState.WAIT_2LOOP
 
-
     async def finish_insert(self):
         if self.status == NodeState.WAIT_INSERTION:
-            pass
+            await self.send_msg(LM.LOOP_CLOSED, LT.LOCAL)
+            await self.send_msg(LM.LOOP_CLOSED, LT.TEMP)
+            self.resetTempLinks()
         elif self.status == NodeState.WAIT_2LOOP:
-            pass
+            await self.send_msg(LM.LOOP_CLOSED, LT.LOCAL)
+            self.resetTempLinks()
 
     async def send_msg(self, message, link_idx):
         await self.outbox.put(Message.from_node(message, self, link_idx))
@@ -112,3 +114,7 @@ class Node:
         for link_pair in self.links:
             await link_pair[LD.IN].close()
             await link_pair[LD.OUT].close()
+
+    def resetTempLinks(self):
+        self.links[LT.TEMP][LD.IN].close()
+        self.links[LT.TEMP][LD.OUT].close()

@@ -12,20 +12,17 @@ class LinkStream:
         self.buffer = asyncio.Queue()
         self.active = False
 
-    async def reset(self):
-        await self.close()
-        self.reader = None
-        self.writer = None
-        while not self.buffer.empty():
-            await self.buffer.get()
-
     async def close(self):
         self.writer.close()
         await self.writer.wait_closed()
         self.active = False
+        self.reader = None
+        self.writer = None
+        while not self.parentLink.buffer.empty():
+            await self.parentLink.buffer.get()
 
-    async def send(self, message):
-        await self.buffer.put(message)
+    async def send(self, msg):
+        await self.parentLink.buffer.put(Message(msg, self))
 
     async def process_stream(self):
         if self.isInbound:

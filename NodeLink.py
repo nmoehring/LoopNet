@@ -13,6 +13,7 @@ class NodeLink:
         self.ip = '127.0.0.1'
         self.port = 8888
         self.stream = LinkStream(self)
+        self.buffer = parent_node.inbox if link_dir == LD.IN else parent_node.outbox
         self.waiting = True if self.linkDir == LD.IN else False
 
     @classmethod
@@ -33,18 +34,15 @@ class NodeLink:
         self.otherNodeId = node_id
         return self
 
-    async def reset(self):
-        self.ip = '127.0.0.1'
-        self.port = 8888
-        self.otherNodeId = 1
-        await self.stream.reset()
-
     async def open(self):
         reader, writer = await asyncio.open_connection(
             self.ip, self.port)
         self.stream = LinkStream(reader, writer, False)
 
     async def close(self):
+        self.ip = '127.0.0.1'
+        self.port = 8888
+        self.otherNodeId = 1
         await self.stream.close()
 
     async def send(self, message):

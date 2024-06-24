@@ -1,0 +1,185 @@
+All my notes on whatever this is.
+
+--------COMMENTS-----------------
+# Loops are connected nodes, nodes send data one way (need to figure out how to prevent
+#   data going the wrong direction on sockets)
+# Knots are 2 loops tied together, one going the opposite direction
+#   4 Loops are tied together into 4 knots, so each node belongs to 2 knots
+# The complete 4 loops in 4 knots is a toroid, and I guess will be considered the most
+#   fundamental stable unit of the LoopNet
+# There are many paths through the toroid, so the toroid may be the most capable
+#   small-scale structure to handle loop breakages or other issues, or maybe just
+#   the largest identifiable structure
+
+# The most complete toroid possible forms from the beginning
+# The first 4 nodes should be in separate loops, laced together
+# Once stack is established, stacks split
+# Stack-stacks form, with different node columns representing at different layers
+#
+
+# 0 - LOOPBACK
+# 1 - Connection Loop And Stack - Connect to everything everywhere as good as possible
+#                               - Higher
+
+# Connecting node:
+#      Accept
+# Insertion node sends message forward:
+#      "expect new connection from the new node address"
+# Insertion
+# New node connects to their new output node
+# New node sends message through new loop which contains their address
+# Mail travels around to
+
+
+#Need to know what node to connect to
+        #connect() just suppposed to advertise intent to connect
+        #a new node is inserted when the loop node connects to the server of the new node,
+        # then the oNode assignment for the new node and the iNode assignment for the next
+        # node in the loop are directed by the insertion node
+
+-----------NOTEPAD-------------
+Danger! Node could reroute message to knot links and the message could never arrive back to sender
+	Sender sees no return message, broadcasts warning, which likely goes to parallel loops as well.
+	The broadcasted message would contain the message details.
+
+connection node tells its oNode to expect connection from new node
+	in this case, new node id is 1
+	the oNode's node id may not be known
+
+Big Idea:
+Nested Loops
+More local fast loops
+Slower, more secure larger loops of loops [of loops [of loops]...]
+Each node behaves completely independently
+Domain-specific loops
+Repeat connections to a node creates redundant nodes so that blocking repeat connections can't indicate to the client that they have multiple IP's of the loop, maybe be broken off to create new loops to discard the redundancy
+The network tracks number of nodes each client connects... I think...
+   A loop has to have multiple connections to the network to qualify as a loop
+   A single client having multiple nodes cannot qualify as a loop
+   Nodes provided by a client that cannot be broken apart will draw suspicion on the providing client
+Encourage attacking, breaking apart competing loops with obscure or inferior algorithms
+Each client must connect to a certain number of loops and not too many
+Messages must come full-circle to ensure no tampering, or else investigation ensues, broadcast on all loops
+
+
+
+Little Idea:
+One direction
+Input Node
+Output Node
+Multiple loop connections
+Some loop connections are local
+Some loop connections are loops of loops
+ The difference might be unknown to the node
+ A loop is a node?
+ Loops don't exist to the node
+Loops have purposes, explicit
+ Data loops
+  Fast data loops
+   Game loops
+  Slow data loops
+   Cryptocurrency loops
+ Connection loops
+  Stay connected
+
+
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1.Every new connection is broadcast to the loop
+  ~ The count is updated constantly.
+  ~ Every node expects communication to and from specific addresses only, so no one can insert themselves in the loop
+  ~ Connections are maintained by "roll call" which updates public/private keys
+2.Every new connection is distributed to the loop to find a randomish connector
+  ~ Does it have to be the same loop? Not in basic infrastructure loops, but yes in domain-specific loops
+3.Simple public/private key encryption system that updates constantly, in every cycle
+  ~Connections are maintained by this cycle, updating public and private keys every time
+4.Every client is looking for a specific signature, with redundancy, for communication
+  ~If modified illegally, keep adding 1 until signature found, and the rest of the message should be clear from there
+  ~If every block is modified differently, redundancy will catch it, raise the alarm
+  ~If every block is modified the same, the redundancy check will pass and the message can be read, alarm still raised
+  ~One signature can be unencrypted, the other encrypted, creating less evident redundancy
+  ~This means that every message has to be checked, if the difference between redundant signatures is the encryption key, it is a real message, if not, it's just random noise
+  ~Your client ID will also be encrypted, further identifying a potential message
+  ~Fake messages are constantly encrypted, as well, to prevent brute forcing encryption, since the encryption is very simple
+  ~Different public/private encryption for each pair in loop, different signature, too.
+  !The connector node could do weird stuff
+  ~Always try connecting through multiple nodes so results can be compared
+  ~New node broadcasts all attempted connections to every possible connection node
+  !Malicious new nodes could broadcast false attempts ...
+  !Malicious new nodes could broadcast normal attempts to connect differently than they communicate, bringing suspicion on innocent nodes.
+  ~Opposing loops, and redundant opposing pairs of opposing loops, so 4 loops altogether
+
+
+New Connection:
+
+New Node:
+Find ip on loopnet
+Connect to their server
+New connection to own server
+oNode ip message received
+connect to given oNode
+send a message confirming closed loop
+send message to connection node that a connection was made
+end connection to connection node
+
+Connection Node:
+Receive connection on server from new node
+broadcast connection attempt
+receive message that new node successfully connected, from new node
+receive message that new node successfully connected, from broadcast
+close connection
+
+Inserting Node:
+connect to new node server
+oNode is informed to expect new iNode
+new node informed of oNode ip
+closed loop confirmation received from iNode
+create connection to new node
+close old oNode connection
+
+That oNode:
+receive message from iNode that there is a new node to insert
+create node waiting for that connection
+receive connection from new node
+complete iNode connection in waiting node
+receive and pass on closed loop confirmation message
+receive closed loop confirmation message from old iNode and new iNode
+close connection to old iNode, delete old node
+
+When that oNode gets the message, it creates a new node, new oNode = old oNode, iNode Waiting on ip/id
+
+
+Server connection categories:
+New node searching for an *initial* connection to LoopNet - temporary - inbound only - "CONNECT"
+LoopNet node inserting you into loop - permanent, hopefully "INSERT"
+New node connecting as part of insertion process - permanent, hopefully - "NEWNODE"
+Loopback node connecting to self - permanent, hopefully - ""
+
+
+inter-toroid loops
+guest loops
+
+New Connection:
+	------New Node--------
+	initNode set to loopnet ip
+		single link created in links, out
+	initNode connects
+	------Connection Node---------------
+	connection received
+	no expected link found
+		or state variable, expecting, then look
+	then: broadcast new connection
+	------Insertion Node-----------------
+	new connection broadcast received
+	[test if good fit]?
+	[then:]
+	broadcast desire to insert new node
+	[tie-breaker loop/other structure]
+	[then:]
+	insert_connect() new node
+	message oNode about changes
+	message new node with oNode address
+	pass on closed loop message to new node and old oNode
+	close old node
+	------New Node-------------------
+	connection received
+	found node in initMode

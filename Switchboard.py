@@ -44,7 +44,8 @@ class Switchboard:
         self.outbox = asyncio.Queue()
         self.nodes = [Node.as_loopback(taskgroup, self.invites, self.inbox, self.outbox),
                       Node(taskgroup, self.invites, self.inbox, self.outbox)]
-        self.initNode = Node(taskgroup, -1, node_type=NT.INIT)
+        self.initNode = Node(taskgroup, self.invites, self.inbox, self.outbox,
+                             node_id=1, node_type=NT.INIT)
         self.taskgroup = taskgroup
 
     async def start(self):

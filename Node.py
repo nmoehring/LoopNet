@@ -32,14 +32,13 @@ class Node:
         return self.links[LT.LOCAL][LD.IN].nodeId == self.nodeId
 
     #   #######Connection methods###############
-    async def init_connect(self, ip, port):  # Connect to signal intent to be inserted in a net loop
-        if self.nodeType == NodeType.INIT:
-            self.links[LT.TEMP][LD.OUT].update(ip, port)
-            await self.links[LT.TEMP][LD.OUT].open()
-            await self.send_msg(["INSERT_NEW_CONNECT", self.nodeId], 0)
-            self.status = NodeState.INSERT_NEW_CONNECT
-        else:
-            raise TypeError("init_connect() only meant to be called from INIT nodes.")
+    async def init_connect(self):  # Connect to signal intent to be inserted in a net loop
+        # if self.nodeType == NodeType.INIT:
+        await self.links[LT.TEMP][LD.OUT].open()
+        await self.send_msg(["INSERT_NEW_CONNECT", self.nodeId], 0)
+        self.status = NodeState.INSERT_NEW_CONNECT
+        # else:
+            # raise TypeError("init_connect() only meant to be called from INIT nodes.")
 
     #   # As node of a loop, connect to new node (connected with init_connect()) to insert them
     async def insert_connect(self, ip, port, node_id):

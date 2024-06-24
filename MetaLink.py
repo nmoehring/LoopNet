@@ -22,7 +22,7 @@ class MetaLink:
         sock = writer.get_extra_info('socket')
         if sock:
             sock_info = sock.getpeername()
-            return cls(1, 1, sock_info[2], sock_info[1],
+            return cls(1, 1, sock_info[0], sock_info[1],
                        parent=parent, reader=reader, writer=writer)
 
     def __eq__(self, other):

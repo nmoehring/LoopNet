@@ -1,5 +1,5 @@
 
-class Message:
+class Mail:
     def __init__(self, data, stream):
         self.stream = stream
         self.link = stream.parentLink
@@ -7,6 +7,7 @@ class Message:
 
         self.data = data
         self.delimiter = ":"
+        self.msg = ""
         if type(data) is list:
             self.msg = (self.delimiter.join(
                     [(str(item) if type(item) is not str else item) for item in data]))
@@ -14,7 +15,7 @@ class Message:
             self.msg = data.decode()
             self.data = self.msg.split(self.delimiter)
         else:
-            raise TypeError("Message initializer received unsupported data type.")
+            raise TypeError("Mail initializer received unsupported data type.")
 
     @classmethod
     def from_node(cls, data, node, link_idx, outbound=True):

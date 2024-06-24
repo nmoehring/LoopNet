@@ -1,27 +1,27 @@
 import asyncio
 
-from Message import Message
+from Mail import Mail
 from NodeLink import NodeLink
-from lingo import NodeType, LinkType, LinkDir, LT, LD, NS, NodeState, LM
+from lingo import NodeType, LinkType, LT, LD, NS, NodeState, LM
 
 
 class Node:
-    def __init__(self, taskgroup, invites, node_id=1, node_type=NodeType.NET):
+    def __init__(self, taskgroup, invites, inbox, outbox, node_id=1, node_type=NodeType.NET):
         self.taskgroup = taskgroup
         self.nodeId = node_id
         self.nodeType = node_type
         self.links = []
-        self.inbox = asyncio.Queue()
-        self.outbox = asyncio.Queue()
+        self.invites = invites
+        self.inbox = inbox
+        self.outbox = outbox
         for type_idx in range(len(LinkType)):
             self.links.append(NodeLink.as_pair(self, type_idx))
-        self.taskgroup.create_task(self.run_mail_service())
-        self.status = NodeState.IDLE
-        self.invites = invites
+        self.status = NodeState.STEADY
+        self.metaLinkBuffer = []
 
     @classmethod
-    def as_loopback(cls, taskgroup, invites):
-        new_node = cls(taskgroup, invites, 0, node_type=NodeType.LOOPBACK)
+    def as_loopback(cls, taskgroup, invites, inbox, outbox):
+        new_node = cls(taskgroup, invites, inbox, outbox, 0, node_type=NodeType.LOOPBACK)
         return new_node
 
     #   #######Node Type Checks#########
@@ -36,8 +36,8 @@ class Node:
         if self.nodeType == NodeType.INIT:
             self.links[LT.TEMP][LD.OUT].update(ip, port)
             await self.links[LT.TEMP][LD.OUT].open()
-            await self.send_msg(["NEW_CONNECT", self.nodeId], 0)
-            self.status = NodeState.NEW_CONNECT
+            await self.send_msg(["INSERT_NEW_CONNECT", self.nodeId], 0)
+            self.status = NodeState.INSERT_NEW_CONNECT
         else:
             raise TypeError("init_connect() only meant to be called from INIT nodes.")
 
@@ -57,33 +57,6 @@ class Node:
     def update_link(self, ip, port, node_id, link_type, link_dir):
         self.links[link_type][link_dir].update(ip, port, node_id)
 
-    # ########MESSAGING########### #
-    async def check_mail(self):
-        while True:
-            await self.handle_msg(await self.inbox.get())
-
-    async def send_mail(self):
-        while True:
-            (await self.outbox.get()).send()
-
-    async def run_mail_service(self):
-        self.taskgroup.create_task(self.check_mail())
-        self.taskgroup.create_task(self.send_mail())
-
-    async def handle_msg(self, msg):
-        data = msg.something()
-        match data[0]:
-            case LM.NEW_CONNECT:
-                await self.begin_insert(data[1], data[2], data[3])
-            case LM.INSERT_EXPECT:
-                await self.invites.put(data[1:])
-                self.status = NS.WAIT_NEW_IB
-            case LM.INSERT_CONNECT_OB:
-                pass
-            case LM.LOOP_CLOSED:
-                if self.status in (NodeState.WAIT_INSERTION, NodeState.WAIT_2LOOP):
-                    await self.finish_insert()
-
     async def begin_insert(self, node_id, ip, port):
         if not self.is_alone():
             await self.insert_connect(node_id, ip, port)  # Connect to new node
@@ -100,21 +73,21 @@ class Node:
 
     async def finish_insert(self):
         if self.status == NodeState.WAIT_INSERTION:
-            await self.send_msg(LM.LOOP_CLOSED, LT.LOCAL)
-            await self.send_msg(LM.LOOP_CLOSED, LT.TEMP)
-            self.resetTempLinks()
+            await self.send_msg(LM.INSERT_LOOP_CLOSED, LT.LOCAL)
+            await self.send_msg(LM.INSERT_LOOP_CLOSED, LT.TEMP)
+            self.reset_temp_links()
         elif self.status == NodeState.WAIT_2LOOP:
-            await self.send_msg(LM.LOOP_CLOSED, LT.LOCAL)
-            self.resetTempLinks()
+            await self.send_msg(LM.INSERT_LOOP_CLOSED, LT.LOCAL)
+            self.reset_temp_links()
 
     async def send_msg(self, message, link_idx):
-        await self.outbox.put(Message.from_node(message, self, link_idx))
+        await self.outbox.put(Mail.from_node(message, self, link_idx))
 
     async def destroy(self):
         for link_pair in self.links:
             await link_pair[LD.IN].close()
             await link_pair[LD.OUT].close()
 
-    def resetTempLinks(self):
+    def reset_temp_links(self):
         self.links[LT.TEMP][LD.IN].close()
         self.links[LT.TEMP][LD.OUT].close()

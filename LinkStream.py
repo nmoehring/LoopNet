@@ -1,6 +1,6 @@
 import asyncio
 
-from Message import Message
+from Mail import Mail
 
 
 class LinkStream:
@@ -22,21 +22,17 @@ class LinkStream:
             await self.parentLink.buffer.get()
 
     async def send(self, msg):
-        await self.parentLink.buffer.put(Message(msg, self))
+        await self.parentLink.buffer.put(Mail(msg, self))
 
-    async def process_stream(self):
-        if self.isInbound:
+    async def read_stream(self):
+        while True:
             async for line in self.reader:
                 print("Msg received...")
-                await Message(line, self).deliver()
-        else:
-            while True:
-                message = await self.parentLink.buffer.get()
-                self.writer.write(message.encode())
-                await self.writer.drain()
+                await Mail(line, self).deliver()
 
     def open(self, reader, writer):
         self.reader = reader
         self.writer = writer
         self.active = True
-        self.parentLink.parentNode.taskgroup.create_task(self.process_stream())
+        if self.isInbound:
+            self.parentLink.parentNode.taskgroup.create_task(self.read_stream())

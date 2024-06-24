@@ -12,7 +12,6 @@ class Operator:
     async def start_all_systems(self):
         self.taskgroup.create_task(self.switchboard.start())
         self.taskgroup.create_task(self.switchboard.init_loopback())
-        self.taskgroup.create_task(self.switchboard.process_queues())
 
     async def run_nodes(self):
         pass
